@@ -1,0 +1,143 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  final TextEditingController _textEditingController = TextEditingController();
+  List<String> usernames = ['RAMAN', 'Prachod', 'Anathi']; // Add more usernames as needed
+  bool isMentioning = false;
+  double popupTop = 0.0;
+  double popupLeft = 0.0;
+
+  // Function to show/hide the popup
+  void _togglePopupVisibility(bool visible) {
+    setState(() {
+      isMentioning = visible;
+    });
+  }
+
+  // Function to handle username selection
+  void _selectUsername(String username) {
+    setState(() {
+      final currentText = _textEditingController.text;
+      final atIndex = currentText.lastIndexOf('@');
+      final newText = currentText.substring(0, atIndex) + username + currentText.substring(atIndex + 1);
+      _textEditingController.text = newText;
+      _togglePopupVisibility(false);
+    });
+  }
+
+  // Function to calculate the popup position based on "@" symbol position
+  void _calculatePopupPosition() {
+    final text = _textEditingController.text;
+    final atIndex = text.lastIndexOf('@');
+
+    if (atIndex >= 0) {
+      final renderBox = context.findRenderObject() as RenderBox;
+      final caretPosition = _textEditingController.selection.baseOffset;
+      final caretRect = _getCaretGlobalRect(renderBox, atIndex, caretPosition);
+
+      setState(() {
+        popupTop = caretRect.bottom + 8.0; // Adjust the vertical position as needed
+        popupLeft = caretRect.left; // Position the popup exactly below "@" symbol
+        isMentioning = true;
+      });
+    } else {
+      setState(() {
+        isMentioning = false;
+      });
+    }
+  }
+
+  // Function to get the global position of the caret at the "@" symbol
+  Rect _getCaretGlobalRect(RenderBox renderBox, int atIndex, int caretPosition) {
+    final textSpan = TextSpan(text: _textEditingController.text, style: DefaultTextStyle.of(context).style);
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      maxLines: 1, // Ensure single line for accurate caret position
+    );
+
+    textPainter.layout();
+    final offset = textPainter.getOffsetForCaret(TextPosition(offset: atIndex), Rect.fromPoints(Offset.zero, renderBox.size.bottomRight(Offset.zero)));
+
+    return Rect.fromPoints(
+      offset,
+      offset + Offset(0.0, textPainter.preferredLineHeight), // Adjust for line height
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Mentionable Text Field'),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _textEditingController,
+              decoration: InputDecoration(
+                hintText: 'Type your message here...',
+              ),
+              onChanged: (text) {
+                _calculatePopupPosition(); // Calculate popup position when "@" is typed
+              },
+            ),
+            if (isMentioning)
+              Positioned(
+                top: popupTop,
+                left: popupLeft,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blue),
+                    borderRadius: BorderRadius.circular(10.0),
+                    color: Colors.white,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: usernames.map((username) {
+                      return GestureDetector(
+                        onTap: () {
+                          _selectUsername(username);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(username),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ElevatedButton(
+              onPressed: () {
+                // Process the message with mentions
+                print(_textEditingController.text);
+              },
+              child: Text('Send'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
